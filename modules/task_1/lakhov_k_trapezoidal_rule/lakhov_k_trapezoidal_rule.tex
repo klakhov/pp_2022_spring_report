@@ -1,0 +1,1306 @@
+\documentclass{report}
+
+\usepackage[warn]{mathtext}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{luainputenc}
+\usepackage[english, russian]{babel}
+\usepackage[pdftex]{hyperref}
+\usepackage{tempora}
+\usepackage[12pt]{extsizes}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+
+\geometry{a4paper,top=2cm,bottom=2cm,left=2.5cm,right=1.5cm}
+\setlength{\parskip}{0.5cm}
+\setlist{nolistsep, itemsep=0.3cm,parsep=0pt}
+
+\usepackage{listings}
+\lstset{language=C++,
+        basicstyle=\footnotesize,
+		keywordstyle=\color{blue}\ttfamily,
+		stringstyle=\color{red}\ttfamily,
+		commentstyle=\color{green}\ttfamily,
+		morecomment=[l][\color{red}]{\#}, 
+		tabsize=4,
+		breaklines=true,
+  		breakatwhitespace=true,
+  		title=\lstname,       
+}
+
+\makeatletter
+\renewcommand\@biblabel[1]{#1.\hfil}
+\makeatother
+
+\begin{document}
+
+\begin{titlepage}
+
+\begin{center}
+Министерство науки и высшего образования Российской Федерации
+\end{center}
+
+\begin{center}
+Федеральное государственное автономное образовательное учреждение высшего образования \\
+Национальный исследовательский Нижегородский государственный университет им. Н.И. Лобачевского
+\end{center}
+
+\begin{center}
+Институт информационных технологий, математики и механики
+\end{center}
+
+\vspace{4em}
+
+\begin{center}
+\textbf{\LargeОтчет по лабораторной работе} \\
+\end{center}
+\begin{center}
+\textbf{\Large«Вычисление многомерных интегралов с использованием многошаговой схемы методом трапеций»} \\
+\end{center}
+
+\vspace{4em}
+
+\newbox{\lbox}
+\savebox{\lbox}{\hbox{text}}
+\newlength{\maxl}
+\setlength{\maxl}{\wd\lbox}
+\hfill\parbox{7cm}{
+\hspace*{5cm}\hspace*{-5cm}\textbf{Выполнил:} \\ студент группы 381908-1 \\ Лахов К. А.\\
+\\
+\hspace*{5cm}\hspace*{-5cm}\textbf{Проверил:}\\ доцент кафедры МОСТ, \\ кандидат технических наук \\ Сысоев А. В.\\
+}
+\vspace{\fill}
+
+\begin{center} Нижний Новгород \\ 2022 \end{center}
+
+\end{titlepage}
+
+\setcounter{page}{2}
+
+% Содержание
+\tableofcontents
+\newpage
+
+% Введение
+\section*{Введение}
+\addcontentsline{toc}{section}{Введение}
+\par 
+Задача вычисления интегралов возникает во многих областях прикладной математики. Для заданной функции $f(x_{1}, x_{2}, ...)$ вычислить значение интеграла $\int_{a_{1}}^{b_{1}}\int_{a_{2}}^{b_{2}} \ldots f(x_{1}, x_{2}, \ldots)dx_{1}dx_{2}\ldots$ в большинстве практических случаев является весьма сложной задачей. Не всегда удается найти аналитическую формулу, т. е. выразить неопределенный интеграл в виде алгебраических и трансцендентных функций. Однако даже если аналитическая формула  находится, то она получается настолько сложной, что вычислять интеграл с ее помощью труднее, чем другими способами. Распространенными являются также случаи, когда подынтегральная функция задается графиком или таблицей экспериментально полученных значений. В таких ситуациях используют различные методы численного интегрирования, которые основаны на том, что интеграл представляется в виде предела интегральной суммы (суммы площадей), и позволяют определить эту сумму с приемлемой точностью.
+\par
+Одним из широко применяемых методов численного вычисления интегралов является метод треугольников. При этом используется многошаговая схема, сводящая решение многомерной задачи к решени вложенных одномерных.
+\newpage
+
+% Постановка задачи
+\section*{Постановка задачи}
+\addcontentsline{toc}{section}{Постановка задачи}
+\par В данном лабораторной работе требуется реализовать последовательную версию и параллельные версии алгоритма вычисления многомерных интегралов методом трапеций, провести вычислительные эксперименты для сравнения времени работы алгоритмов, используя при этом фрэймворк для разработки автоматических тестов Google Test, продемонстрировать работу алгоритмов на реальных изображениях, сделать выводы об эффективности реализованных алгоритмов.
+\par Параллельные алгоритмы должны быть реализованы при помощи технологий OpenMP, TBB, std::thread.
+\newpage
+
+% Описание алгоритма
+\section*{Описание алгоритма}
+\addcontentsline{toc}{section}{Описание алгоритма}
+\par Пусть для заданной функции $f(x)$ необходимо вычислить значение $\int_{a}^b f(x)dx$. При этом задано $M$ - число разбиений интервала [{a,b}]. Тогда одномерная задача будет решаться как:
+$$ h = \frac{(b-a)}{M} $$
+$$ x_{1} = a $$
+$$ x_{j+1} = x_{j} + h $$
+$$\int_{a}^b f(x)dx = \sum_{j=1}^M \frac{f(x_{j}) + f(x_{j-1})}{2}h$$
+
+\par Для многомерной задачи $\int_{a_{1}}^{b_{1}}\int_{a_{2}}^{b_{2}} \ldots f(x_{1}, x_{2}, \ldots)dx_{1}dx_{2}\ldots$ введем понятия:
+\begin{enumerate}
+  \item Номер текущего рассматриваемого измерения $d$ и общее число измерений $D$
+  \item Шаг в $i-ом$ измерении есть увеличение переменной $x_{i} = x_{i} + h_{i}$. Шаг назовем последним если в результате этой операции $x_{i} = b_{i}$
+\end{enumerate}
+\par Алгоритм начинает работу с $d=1$ и делает следующее:
+\begin{enumerate}
+  \item Если  $d < D$
+    \begin{enumerate}
+          \item Cделать шаг по переменной $d-го$ измерения. Запустить алгоритм для $d+1$ измерения, сообщив ему новое значение $x_{d}$, затем полученный от алгоритма результат $sum$ прибавить к общей сумме
+          \item Если шаг был последним, остановить алгоритм и вернуть накопленное значение, иначе вернуться к предыдущему пункту
+    \end{enumerate}
+  \item Если $ d = D$
+  \begin{enumerate}
+      \item При достижении последнего измерения решить одномерную задачу. При этом значения $x_{1}, x_{2}, \ldots , x_{D-1} $ будут известны алгоритму по предыдущим шагам
+      $$ h_{i} = \frac{(b_{i}-a_{i})}{M} $$
+      $$ x_{D, 1} = a_{i} $$
+      $$ x_{D, j+1} = x_{D, j} + h_{i} $$
+      $$ H = \prod_{j=1}^D h_{i} $$
+      $$ sum = \sum_{j=1}^M \frac{f(x_{1}, x_{2}, \ldots , x_{D, j}) + f(x_{1}, x_{2}, \ldots , x_{D, j-1})}{2}H$$
+      \item Вернуть значение $ sum $ 
+  \end{enumerate}
+  \par Алгоритм является рекурсивным и после запуска на $d = 1$ возвращенное значение будет ответом задачи.
+\end{enumerate}
+
+
+\newpage
+
+% Описание схемы распараллеливания
+\section*{Описание схемы распараллеливания}
+\addcontentsline{toc}{section}{Описание схемы распараллеливания}
+\par Распараллеливание происходит с помощью разбиения области интегрирования первого измерения $[a_{1}, b_{1}]$ на $n$ более мелких интервалов, где $n$ это число потоков, используя которые будет решаться задача.
+$$ S = \frac{b_{1} - a_{1}}{n} $$
+$$ [a_{1, i}, b_{1, i}] = [a_{i} + (i-1)\cdot S, a_{i} + i\cdot S]$$
+\par Каждый из потоков получает свою собственную область для интегрирования $[a_{1, i}, b_{1, i}]$ в первом измерении, все остальные области для каждого из потоков остаются прежними. При этом число шагов для первого измерения в каждом потоке становится меньше, так как области интегрирования стали меньше. Для остальных же областей число шагов остается прежним.
+$$ M_{1} = [\frac{M}{n}] $$
+$$ \forall i \neq 1 :M_{i} = M $$
+\par Таким образом, в каждом потоке рекурсивно решаются более мелкие задачи по первому измерению, результат работы каждого потока суммируется в общий ответ задачи.
+\newpage
+
+% Описание программной реализации
+\section*{Описание программной реализации}
+\addcontentsline{toc}{section}{Описание программной реализации}
+Программа состоит из заголовочного файла trapezoidal\_rule.h и двух файлов исходного кода trapezoidal\_rule.cpp и main.cpp.
+\par В заголовочном файле находятся прототипы функций для последовательного и параллельных алгоритмов вычисления многомерных интегралов методом трапеций.
+\par Вспомогательная функция для рекурсивного решения задачи, в ней реализуется алгоритм вычисления интеграла:
+\begin{lstlisting}
+double _trapezoidalRule(std::function<double(std::vector<double>)> func,
+                       const std::vector<double>& args, int position,
+                       const std::vector<std::pair<double, double>>& intervals,
+                       const std::vector<int>& interval_count);
+\end{lstlisting}
+\par Первый параметр это функция, которую необходимо проинтегрировать, второй параметр - текущие аргументы, сообщенные рекурсивным алгоритмом, третий параметр - номер текущего рассматриваемого измерения,  четвертый параметр - массив интервалов, показывающих области интегрирования для каждого измерения, последний параметр - массив числа разбиений области интегрирования для каждого из измерений.
+\par Функция для последовательного алгоритма:
+\begin{lstlisting}
+double trapezoidalRuleSeq(std::function<double(std::vector<double>)> func,
+                        const std::vector<std::pair<double, double>>& intervals,
+                        int interval_count);
+\end{lstlisting}
+\par Функция для параллельного алгоритма (OpenMP версия):
+\begin{lstlisting}
+double trapezoidalRuleOMP(std::function<double(std::vector<double>)> func,
+                        const std::vector<std::pair<double, double>>& intervals,
+                        int interval_count);
+\end{lstlisting}
+\par Функция для параллельного алгоритма (TBB версия):
+\begin{lstlisting}
+double trapezoidalRuleTBB(std::function<double(std::vector<double>)> func,
+                        const std::vector<std::pair<double, double>>& intervals,
+                        int interval_count);
+\end{lstlisting}
+\par Функция для параллельного алгоритма (std::thread версия):
+\begin{lstlisting}
+double trapezoidalRuleSTD(std::function<double(std::vector<double>)> func,
+                        const std::vector<std::pair<double, double>>& intervals,
+                        int interval_count);
+\end{lstlisting}
+\par В каждой из функций параллельного алгоритма: первый параметр это фунцкия, которую необходимо проинтегрировать, второй параметр - массив интервалов, показывающих области интегрирования для каждого измерения, последний параметр - число разбиений области интегрирования для каждого из измерений.
+\par Функции f1-f5 для тестирования разработанных алгоритмов, где входной параметр является массивом аргументов:
+\begin{lstlisting}
+double f1(std::vector<double> args);
+double f2(std::vector<double> args);
+double f3(std::vector<double> args);
+double f4(std::vector<double> args);
+double f5(std::vector<double> args);
+\end{lstlisting}
+\par В файле исходного кода histogram\_stretching.cpp содержится реализация функций, объявленных в заголовочном файле. В файле исходного кода main.cpp содержатся тесты для проверки корректности программы.
+\newpage
+
+% Подтверждение корректности
+\section*{Подтверждение корректности}
+\addcontentsline{toc}{section}{Подтверждение корректности}
+Для подтверждения корректности работы данной программы с помощью фрэймфорка Google Test мной было разработано 5 тестов для каждой версии алгоритма. В каждом из тестов для предопределенных функций f1-f5 решается задача с помощью параллельного и последовательного метода. Затем результаты вычислений
+сравниваются. Все тесты были пройдены успешно, помимо этого, результат вычислений сравнен с результатом внешних калькуляторов, что подтверждает корректность алгоритмов.
+\newpage
+
+% Результаты экспериментов
+\section*{Результаты экспериментов}
+\addcontentsline{toc}{section}{Результаты экспериментов}
+Эксперименты проводились для функций:
+$$f_4 = e^{-x-y-z} $$
+$$f_5 = log_{10}(x^2) + 3y $$
+\par Для каждой функции был написан тест на больших интервалах по $x$, $y$, $z$. Тестирование проводилось на 16 потоках.
+
+\par Результаты экспериментов представлены в Таблице 1 и в Таблице 2.
+\begin{table}[!h]
+\caption{Результаты вычислительных экспериментов с $f_4$}
+\centering
+\begin{tabular}{| p{2cm} | p{3cm} | p{4cm} | p{2cm} |}
+\hline
+Версия алгоритма & Время работы (в секундах) & Ускорение  \\[5pt]
+\hline
+Sequential        & 0.208127        & -         \\
+OpenMP        & 0.0316606        & 6.57369          \\
+TBB       & 0.0313455        & 6.63977         \\
+std::thread        & 0.0317927        & 6,54638           \\
+
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[!h]
+\caption{Результаты вычислительных экспериментов с $f_5$}
+\centering
+\begin{tabular}{| p{2cm} | p{3cm} | p{4cm} | p{2cm} |}
+\hline
+Версия алгоритма & Время работы (в секундах) & Ускорение  \\[5pt]
+\hline
+Sequential      & 0.206023       & -         \\
+OpenMP        & 0.0308585        & 6.67638          \\
+TBB       & 0.0302203       & 6.81737         \\
+std::thread        & 0.0303269        & 6,79341          \\
+
+\hline
+\end{tabular}
+\end{table}
+
+\newpage
+
+% Выводы из результатов экспериментов
+\section*{Выводы из результатов экспериментов}
+\addcontentsline{toc}{section}{Выводы из результатов экспериментов}
+Из данных, полученных в результате экспериментов (см. Таблицу 1 и Таблицу 2), можно сделать вывод, что все параллельные версии работают значительно быстрее чем последовательная. Во всех случаях удается достичь ускорения в шесть раз. Это означает что выбранная схема распараллеливания верна и весьма эффективна при решении задачи многомерного интегрирования. Проанализировав полученные результаты, можно заметить, что TBB версия работает несколько быстрее OMP и std::thread версий.
+\newpage
+
+% Заключение
+\section*{Заключение}
+\addcontentsline{toc}{section}{Заключение}
+Таким образом, в рамках данной лабораторной работы были разработаны последовательный и параллельные алгоритмы вычисления многомерных интегралов с использованием многошаговой схемы методом трапеций. Проведенные тесты и эксперименты показали корректность и эффективность реализованной программы.
+\newpage
+
+% Литература
+\section*{Литература}
+\addcontentsline{toc}{section}{Литература}
+\begin{enumerate}
+\item ТГПУ - Электронный ресурс. URL: \newline \url{http://koi.tspu.ru/koi_books/gazizov/l10p03.htm}
+\item Habr - Электронный ресурс. URL: \newline \url{https://habr.com/ru/post/479202/}
+\item А.В. Сысоев, И.Б. Мееров, А.А. Сиднев «Средства разработки параллельных программ для систем с общей памятью. Библиотека Intel Threading Building Blocks». Нижний Новгород, 2007, 128 с. 
+\item А.В. Сысоев, И.Б. Мееров, А.Н. Свистунов, А.Л. Курылев, А.В. Сенин, А.В. Шишков, К.В. Корняков, А.А. Сиднев «Параллельное программирование в системах с общей
+памятью. Инструментальная поддержка». Нижний Новгород, 2007, 110 с. 
+\end{enumerate} 
+
+\newpage
+
+% Приложение
+\section*{Приложение}
+\addcontentsline{toc}{section}{Приложение}
+\textbf{Последовательная версия}
+\newline
+\newline trapezoidal\_rule.h
+\begin{lstlisting}
+// Copyright 2022 Lakhov Kirill
+#ifndef MODULES_TASK_1_LAKHOV_K_TRAPEZOIDAL_RULE_TRAPEZOIDAL_RULE_H_
+#define MODULES_TASK_1_LAKHOV_K_TRAPEZOIDAL_RULE_TRAPEZOIDAL_RULE_H_
+#include <vector>
+#include <functional>
+#include <utility>
+
+double _trapezoidalRule(std::function<double(std::vector<double>)> func,
+                       const std::vector<double>& args, int position,
+                       const std::vector<std::pair<double, double>>& intervals,
+                       int interval_count);
+
+double trapezoidalRule(std::function<double(std::vector<double>)> func,
+                       const std::vector<std::pair<double, double>>& intervals,
+                       int interval_count);
+
+#endif  // MODULES_TASK_1_LAKHOV_K_TRAPEZOIDAL_RULE_TRAPEZOIDAL_RULE_H_
+
+\end{lstlisting}
+
+trapezoidal\_rule.cpp
+\begin{lstlisting}
+// Copyright 2022 Lakhov Kirill
+
+#include "../../../modules/task_1/lakhov_k_trapezoidal_rule/trapezoidal_rule.h"
+#include <vector>
+#include <functional>
+
+double _trapezoidalRule(std::function<double(std::vector<double>)> func,
+                       const std::vector<double>& args, int position,
+                       const std::vector<std::pair<double, double>>& intervals,
+                       int interval_count) {
+        double result = 0;
+        int dimensions = args.size();
+        double left = intervals[position].first;
+        double right = intervals[position].second;
+        double interval_size = (right - left)/interval_count;
+
+        if (position == dimensions - 1) {
+          double x = left;
+          std::vector<double> current_args(args);
+          std::vector<double> next_args(args);
+          double interval_dimension = 1;
+          for (int i = 0; i < dimensions; i++) {
+              double interval = (intervals[i].second - intervals[i].first)
+                                /interval_count;
+              interval_dimension *= interval;
+          }
+          for (int i = 0; i < interval_count; i++) {
+            current_args[position] = x;
+            next_args[position] = x + interval_size;
+            result += ((func(current_args) + func(next_args))/2)
+                      *interval_dimension;
+            x += interval_size;
+          }
+        } else {
+          double x = left;
+          std::vector<double> next_args(args);
+          for (int i = 0; i < interval_count; i++) {
+            next_args[position] = x + interval_size;
+            result += _trapezoidalRule(func, next_args,
+                                      position + 1, intervals, interval_count);
+            x += interval_size;
+          }
+        }
+        return result;
+}
+
+double trapezoidalRule(std::function<double(std::vector<double>)> func,
+                       const std::vector<std::pair<double, double>>& intervals,
+                       int interval_count) {
+        int position = 0;
+        int dimensions = intervals.size();
+        std::vector<double> args(dimensions);
+        for (int i = 0; i < dimensions; i++) {
+          args[i] = intervals[i].first;
+        }
+        return _trapezoidalRule(func, args, position,
+                                intervals, interval_count);
+}
+\end{lstlisting}
+
+main.cpp
+\begin{lstlisting}
+// Copyright 2022 Lakhov Kirill
+#include <gtest/gtest.h>
+#include <math.h>
+
+#include <vector>
+#include <iostream>
+#include "./trapezoidal_rule.h"
+
+// f(x) = x
+double f1(std::vector<double> args) {
+  return args[0];
+}
+
+// f(x, y) = x + y
+double f2(std::vector<double> args) {
+  return args[0] + args[1];
+}
+
+// f(x, y, z) = x + y + z
+double f3(std::vector<double> args) {
+  return args[0] + args[1] + args[2];
+}
+
+// f(x, y, z) = e^(-x-y-z)
+double f4(std::vector<double> args) {
+  return exp(-args[0]-args[1]-args[2]);
+}
+
+// f(x, y) = log10(x^2) + 3y
+double f5(std::vector<double> args) {
+  return log10(args[0]*args[0]) + 3 * args[1];
+}
+
+TEST(lakhov_trapezoidal_rule, func1) {
+  std::vector<std::pair<double, double>> intervals(1);
+  intervals[0] = {0, 10};
+  int interval_count = 5;
+  double result = trapezoidalRule(f1, intervals, interval_count);
+  ASSERT_NEAR(50, result, 1);
+}
+
+
+TEST(lakhov_trapezoidal_rule, func2) {
+  std::vector<std::pair<double, double>> intervals(2);
+  intervals[0] = {0, 2};
+  intervals[1] = {0, 2};
+  int interval_count = 70;
+  double result = trapezoidalRule(f2, intervals, interval_count);
+  ASSERT_NEAR(8.0, result, 0.2);
+}
+
+TEST(lakhov_trapezoidal_rule, func3) {
+  std::vector<std::pair<double, double>> intervals(3);
+  intervals[0] = {0, 3};
+  intervals[1] = {0, 3};
+  intervals[2] = {0, 3};
+  int interval_count = 100;
+  double result = trapezoidalRule(f3, intervals, interval_count);
+  ASSERT_NEAR(121.5, result, 1);
+}
+
+TEST(lakhov_trapezoidal_rule, func4) {
+  std::vector<std::pair<double, double>> intervals(3);
+  intervals[0] = {0, 1};
+  intervals[1] = {0, 1};
+  intervals[2] = {0, 1};
+  int interval_count = 100;
+  double result = trapezoidalRule(f4, intervals, interval_count);
+  ASSERT_NEAR(0.2525, result, 0.01);
+}
+
+TEST(lakhov_trapezoidal_rule, func5) {
+  std::vector<std::pair<double, double>> intervals(2);
+  intervals[0] = {0, 2};
+  intervals[1] = {0, 2};
+  int interval_count = 100;
+  double result = trapezoidalRule(f5, intervals, interval_count);
+  ASSERT_NEAR(10.9, result, 0.2);
+}
+
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+}
+
+\end{lstlisting}
+\newpage
+\textbf{OpenMP версия}
+\newline
+\newline trapezoidal\_rule.h
+\begin{lstlisting}
+// Copyright 2022 Lakhov Kirill
+#ifndef MODULES_TASK_2_LAKHOV_K_TRAPEZOIDAL_RULE_TRAPEZOIDAL_RULE_H_
+#define MODULES_TASK_2_LAKHOV_K_TRAPEZOIDAL_RULE_TRAPEZOIDAL_RULE_H_
+#include <omp.h>
+#include <vector>
+#include <functional>
+#include <utility>
+
+double _trapezoidalRule(std::function<double(std::vector<double>)> func,
+                       const std::vector<double>& args, int position,
+                       const std::vector<std::pair<double, double>>& intervals,
+                       std::vector<int> interval_count);
+
+double trapezoidalRuleSeq(std::function<double(std::vector<double>)> func,
+                       const std::vector<std::pair<double, double>>& intervals,
+                       int interval_count);
+
+double trapezoidalRuleParallel(std::function<double(std::vector<double>)> func,
+                       const std::vector<std::pair<double, double>>& intervals,
+                       int interval_count);
+
+#endif  // MODULES_TASK_2_LAKHOV_K_TRAPEZOIDAL_RULE_TRAPEZOIDAL_RULE_H_
+\end{lstlisting}
+trapezoidal\_rule.cpp
+\begin{lstlisting}
+// Copyright 2022 Lakhov Kirill
+
+#include "../../../modules/task_2/lakhov_k_trapezoidal_rule/trapezoidal_rule.h"
+#include <math.h>
+#include <vector>
+#include <functional>
+
+double _trapezoidalRule(std::function<double(std::vector<double>)> func,
+                       const std::vector<double>& args, int position,
+                       const std::vector<std::pair<double, double>>& intervals,
+                       std::vector<int> interval_count) {
+        double result = 0;
+        int dimensions = intervals.size();
+        double left = intervals[position].first;
+        double right = intervals[position].second;
+        double interval_size = (right - left)/interval_count[position];
+
+        if (position == dimensions - 1) {
+          double x = left;
+          std::vector<double> current_args(args);
+          std::vector<double> next_args(args);
+          double interval_dimension = 1;
+          for (int i = 0; i < dimensions; i++) {
+              double interval = (intervals[i].second - intervals[i].first)
+                                /interval_count[i];
+              interval_dimension *= interval;
+          }
+          for (int i = 0; i < interval_count[position]; i++) {
+            current_args[position] = x;
+            next_args[position] = x + interval_size;
+            result += ((func(current_args) + func(next_args))/2)
+                      *interval_dimension;
+            x += interval_size;
+          }
+        } else {
+          double x = left;
+          std::vector<double> next_args(args);
+          for (int i = 0; i < interval_count[position]; i++) {
+            next_args[position] = x + interval_size;
+            result += _trapezoidalRule(func, next_args,
+                                      position + 1, intervals, interval_count);
+            x += interval_size;
+          }
+        }
+        return result;
+}
+
+double trapezoidalRuleSeq(std::function<double(std::vector<double>)> func,
+                       const std::vector<std::pair<double, double>>& intervals,
+                       int interval_count) {
+        int position = 0;
+        int dimensions = intervals.size();
+        std::vector<double> args(dimensions);
+        std::vector<int> interval_count_v(dimensions);
+        for (int i = 0; i < dimensions; i++) {
+          args[i] = intervals[i].first;
+          interval_count_v[i] = interval_count;
+        }
+        return _trapezoidalRule(func, args, position,
+                                intervals, interval_count_v);
+}
+
+double trapezoidalRuleParallel(std::function<double(std::vector<double>)> func,
+                       const std::vector<std::pair<double, double>>& intervals,
+                       int interval_count) {
+      int position = 0;
+      int threads = omp_get_max_threads();
+
+      int dimensions = intervals.size();
+      std::vector<double> args(dimensions);
+      std::vector<int> interval_count_v(dimensions);
+      for (int i = 0; i < dimensions; i++) {
+         args[i] = intervals[i].first;
+         interval_count_v[i] = i == 0 ?
+                                      (interval_count / threads) :
+                                       interval_count;
+      }
+
+      std::vector<std::vector<std::pair<double, double>>>
+                                intervals_to_thread(threads);
+      double fist_dimension_interval =
+                          (intervals[0].second - intervals[0].first) / threads;
+      double current_x = intervals[0].first;
+      for (int i = 0; i < threads; i++) {
+        std::vector<std::pair<double, double>> current_intervals(intervals);
+        current_intervals[0].first = current_x;
+        current_x += fist_dimension_interval;
+        current_intervals[0].second = current_x;
+        intervals_to_thread[i] = current_intervals;
+      }
+
+      double result = 0;
+      #pragma omp parallel num_threads(threads) reduction(+: result)
+      {
+          result += _trapezoidalRule(func, args, position,
+                                     intervals_to_thread[omp_get_thread_num()],
+                                     interval_count_v);
+      }
+      return result;
+}
+\end{lstlisting}
+
+main.cpp
+\begin{lstlisting}
+// Copyright 2022 Lakhov Kirill
+#include <gtest/gtest.h>
+#include <math.h>
+
+#include <vector>
+#include "./trapezoidal_rule.h"
+
+#define USE_EFFICIENCY_TESTS 0
+
+// f(x) = x
+double f1(std::vector<double> args) {
+  return args[0];
+}
+
+// f(x, y) = x + y
+double f2(std::vector<double> args) {
+  return args[0] + args[1];
+}
+
+// f(x, y, z) = x + y + z
+double f3(std::vector<double> args) {
+  return args[0] + args[1] + args[2];
+}
+
+// f(x, y, z) = e^(-x-y-z)
+double f4(std::vector<double> args) {
+  return exp(-args[0]-args[1]-args[2]);
+}
+
+// f(x, y) = log10(x^2) + 3y
+double f5(std::vector<double> args) {
+  return log10(args[0]*args[0]) + 3 * args[1];
+}
+
+TEST(lakhov_trapezoidal_rule_omp, func1) {
+  std::vector<std::pair<double, double>> intervals(1);
+  intervals[0] = {0, 10};
+  int interval_count = 10;
+  double result_seq = trapezoidalRuleSeq(f1, intervals, interval_count);
+  double result_p = trapezoidalRuleParallel(f1, intervals, interval_count);
+  ASSERT_NEAR(result_seq, result_p, 0.1);
+}
+
+
+TEST(lakhov_trapezoidal_rule_omp, func2) {
+  std::vector<std::pair<double, double>> intervals(2);
+  intervals[0] = {0, 2};
+  intervals[1] = {0, 2};
+  int interval_count = 70;
+  double result_seq = trapezoidalRuleSeq(f2, intervals, interval_count);
+  double result_p = trapezoidalRuleParallel(f2, intervals, interval_count);
+  ASSERT_NEAR(result_seq, result_p, 0.1);
+}
+
+TEST(lakhov_trapezoidal_rule_omp, func3) {
+  std::vector<std::pair<double, double>> intervals(3);
+  intervals[0] = {0, 3};
+  intervals[1] = {0, 3};
+  intervals[2] = {0, 3};
+  int interval_count = 100;
+  double result_seq = trapezoidalRuleSeq(f3, intervals, interval_count);
+  double result_p = trapezoidalRuleParallel(f3, intervals, interval_count);
+  ASSERT_NEAR(result_seq, result_p, 0.1);
+}
+
+TEST(lakhov_trapezoidal_rule_omp, func4) {
+  std::vector<std::pair<double, double>> intervals(3);
+  intervals[0] = {0, 1};
+  intervals[1] = {0, 1};
+  intervals[2] = {0, 1};
+  int interval_count = 100;
+  double result_seq = trapezoidalRuleSeq(f4, intervals, interval_count);
+  double result_p = trapezoidalRuleParallel(f4, intervals, interval_count);
+  ASSERT_NEAR(result_seq, result_p, 0.1);
+}
+
+TEST(lakhov_trapezoidal_rule_omp, func5) {
+  std::vector<std::pair<double, double>> intervals(2);
+  intervals[0] = {0, 2};
+  intervals[1] = {0, 2};
+  int interval_count = 100;
+  double result_seq = trapezoidalRuleSeq(f5, intervals, interval_count);
+  double result_p = trapezoidalRuleParallel(f5, intervals, interval_count);
+  ASSERT_NEAR(result_seq, result_p, 0.1);
+}
+
+#if USE_EFFICIENCY_TESTS == 1
+
+  TEST(lakhov_trapezoidal_rule_omp, ef_test1) {
+    std::vector<std::pair<double, double>> intervals(2);
+    intervals[0] = {0, 40};
+    intervals[1] = {0, 40};
+    int interval_count = 1000;
+
+    double st1 = omp_get_wtime();
+    double result_seq = trapezoidalRuleSeq(f5, intervals, interval_count);
+    double st2 = omp_get_wtime();
+
+    double pt1 = omp_get_wtime();
+    double result_p = trapezoidalRuleParallel(f5, intervals, interval_count);
+    double pt2 = omp_get_wtime();
+
+    std::cout << "Sequential time: " << st2 - st1 << std::endl;
+    std::cout << "Parallel time: " << pt2 - pt1 << std::endl;
+    std::cout << "Ratio seq/par: " << (st2 - st1) / (pt2 - pt1) << std::endl;
+    ASSERT_NEAR(result_seq, result_p, 0.1);
+  }
+
+  TEST(lakhov_trapezoidal_rule_omp, ef_test2) {
+    std::vector<std::pair<double, double>> intervals(3);
+    intervals[0] = {0, 20};
+    intervals[1] = {0, 20};
+    intervals[2] = {0, 20};
+    int interval_count = 100;
+
+    double st1 = omp_get_wtime();
+    double result_seq = trapezoidalRuleSeq(f4, intervals, interval_count);
+    double st2 = omp_get_wtime();
+
+    double pt1 = omp_get_wtime();
+    double result_p = trapezoidalRuleParallel(f4, intervals, interval_count);
+    double pt2 = omp_get_wtime();
+
+    std::cout << "Sequential time: " << st2 - st1 << std::endl;
+    std::cout << "Parallel time: " << pt2 - pt1 << std::endl;
+    std::cout << "Ratio seq/par: " << (st2 - st1) / (pt2 - pt1) << std::endl;
+    ASSERT_NEAR(result_seq, result_p, 0.1);
+  }
+
+#endif  // USE_EFFICIENCY_TESTS
+
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+}
+\end{lstlisting}
+
+\textbf{TBB версия}
+\newline
+\newline trapezoidal\_rule.h
+\begin{lstlisting}
+// Copyright 2022 Lakhov Kirill
+#ifndef MODULES_TASK_3_LAKHOV_K_TRAPEZOIDAL_RULE_TRAPEZOIDAL_RULE_H_
+#define MODULES_TASK_3_LAKHOV_K_TRAPEZOIDAL_RULE_TRAPEZOIDAL_RULE_H_
+
+#include <tbb/tbb.h>
+#include <vector>
+#include <functional>
+#include <utility>
+
+
+double trapezoidalRuleParallel(std::function<double(std::vector<double>)> func,
+                       const std::vector<std::pair<double, double>>& intervals,
+                       int interval_count);
+
+double trapezoidalRuleSeq(std::function<double(std::vector<double>)> func,
+                       const std::vector<std::pair<double, double>>& intervals,
+                       int interval_count);
+
+double _trapezoidalRule(std::function<double(std::vector<double>)> func,
+                       const std::vector<double>& args, int position,
+                       const std::vector<std::pair<double, double>>& intervals,
+                       std::vector<int> interval_count);
+
+#endif  // MODULES_TASK_3_LAKHOV_K_TRAPEZOIDAL_RULE_TRAPEZOIDAL_RULE_H_
+\end{lstlisting}
+trapezoidal\_rule.cpp
+\begin{lstlisting}
+// Copyright 2022 Lakhov Kirill
+#include "../../../modules/task_3/lakhov_k_trapezoidal_rule/trapezoidal_rule.h"
+
+#include <tbb/tbb.h>
+
+#include <vector>
+#include <iostream>
+#include <functional>
+
+typedef std::vector<std::vector<std::pair<double, double>>> integral_intervals;
+
+double _trapezoidalRule(std::function<double(std::vector<double>)> func,
+                       const std::vector<double>& args, int position,
+                       const std::vector<std::pair<double, double>>& intervals,
+                       std::vector<int> interval_count) {
+        double result = 0;
+        int dimensions = intervals.size();
+        double left = intervals[position].first;
+        double right = intervals[position].second;
+        double interval_size = (right - left)/interval_count[position];
+
+        if (position == dimensions - 1) {
+          double x = left;
+          std::vector<double> current_args(args);
+          std::vector<double> next_args(args);
+          double interval_dimension = 1;
+          for (int i = 0; i < dimensions; i++) {
+              double interval = (intervals[i].second - intervals[i].first)
+                                /interval_count[i];
+              interval_dimension *= interval;
+          }
+          for (int i = 0; i < interval_count[position]; i++) {
+            current_args[position] = x;
+            next_args[position] = x + interval_size;
+            result += ((func(current_args) + func(next_args))/2)
+                      *interval_dimension;
+            x += interval_size;
+          }
+        } else {
+          double x = left;
+          std::vector<double> next_args(args);
+          for (int i = 0; i < interval_count[position]; i++) {
+            next_args[position] = x + interval_size;
+            result += _trapezoidalRule(func, next_args,
+                                      position + 1, intervals, interval_count);
+            x += interval_size;
+          }
+        }
+        return result;
+}
+
+double trapezoidalRuleSeq(std::function<double(std::vector<double>)> func,
+                       const std::vector<std::pair<double, double>>& intervals,
+                       int interval_count) {
+        int position = 0;
+        int dimensions = intervals.size();
+        std::vector<double> args(dimensions);
+        std::vector<int> interval_count_v(dimensions);
+        for (int i = 0; i < dimensions; i++) {
+          args[i] = intervals[i].first;
+          interval_count_v[i] = interval_count;
+        }
+        return _trapezoidalRule(func, args, position,
+                                intervals, interval_count_v);
+}
+
+double trapezoidalRuleParallel(std::function<double(std::vector<double>)> func,
+                       const std::vector<std::pair<double, double>>& intervals,
+                       int interval_count) {
+    int threads = tbb::task_scheduler_init::default_num_threads();
+    int position = 0;
+    int dimensions = intervals.size();
+    std::vector<double> args(dimensions);
+    std::vector<int> interval_count_v(dimensions);
+
+    for (int i = 0; i < dimensions; i++) {
+         args[i] = intervals[i].first;
+         interval_count_v[i] = i == 0 ?
+                                      (interval_count / threads) :
+                                       interval_count;
+      }
+
+      integral_intervals intervals_to_thread(threads);
+      double fist_dimension_interval =
+                          (intervals[0].second - intervals[0].first) / threads;
+      double current_x = intervals[0].first;
+      for (int i = 0; i < threads; i++) {
+        std::vector<std::pair<double, double>> current_intervals(intervals);
+        current_intervals[0].first = current_x;
+        current_x += fist_dimension_interval;
+        current_intervals[0].second = current_x;
+        intervals_to_thread[i] = current_intervals;
+    }
+
+  double result = tbb::parallel_reduce(
+    tbb::blocked_range<integral_intervals::const_iterator>
+                    (intervals_to_thread.begin(), intervals_to_thread.end()),
+    0.0,
+    [&](tbb::blocked_range<integral_intervals::const_iterator> range,
+        double result) {
+        auto task = range.begin();
+        while (task != range.end()) {
+          result += _trapezoidalRule(func, args,
+                                     position, (*task), interval_count_v);
+          ++task;
+        }
+        return result;
+      }, std::plus<double>());
+  return result;
+}
+\end{lstlisting}
+main.cpp
+\begin{lstlisting}
+// Copyright 2022 Lakhov Kirill
+#include <gtest/gtest.h>
+#include <math.h>
+
+#include <algorithm>
+#include <vector>
+
+#include "./trapezoidal_rule.h"
+
+#define USE_EFFICIENCY_TESTS 0
+
+// f(x) = x
+double f1(std::vector<double> args) {
+  return args[0];
+}
+
+// f(x, y) = x + y
+double f2(std::vector<double> args) {
+  return args[0] + args[1];
+}
+
+// f(x, y, z) = x + y + z
+double f3(std::vector<double> args) {
+  return args[0] + args[1] + args[2];
+}
+
+// f(x, y, z) = e^(-x-y-z)
+double f4(std::vector<double> args) {
+  return exp(-args[0]-args[1]-args[2]);
+}
+
+// f(x, y) = log10(x^2) + 3y
+double f5(std::vector<double> args) {
+  return log10(args[0]*args[0]) + 3 * args[1];
+}
+
+TEST(lakhov_trapezoidal_rule_tbb, func1) {
+  std::vector<std::pair<double, double>> intervals(1);
+  intervals[0] = {0, 10};
+  int interval_count = 10;
+  double result_seq = trapezoidalRuleSeq(f1, intervals, interval_count);
+  double result_p = trapezoidalRuleParallel(f1, intervals, interval_count);
+  ASSERT_NEAR(result_seq, result_p, 0.1);
+}
+
+
+TEST(lakhov_trapezoidal_rule_tbb, func2) {
+  std::vector<std::pair<double, double>> intervals(2);
+  intervals[0] = {0, 2};
+  intervals[1] = {0, 2};
+  int interval_count = 70;
+  double result_seq = trapezoidalRuleSeq(f2, intervals, interval_count);
+  double result_p = trapezoidalRuleParallel(f2, intervals, interval_count);
+  ASSERT_NEAR(result_seq, result_p, 0.1);
+}
+
+TEST(lakhov_trapezoidal_rule_tbb, func3) {
+  std::vector<std::pair<double, double>> intervals(3);
+  intervals[0] = {0, 3};
+  intervals[1] = {0, 3};
+  intervals[2] = {0, 3};
+  int interval_count = 100;
+  double result_seq = trapezoidalRuleSeq(f3, intervals, interval_count);
+  double result_p = trapezoidalRuleParallel(f3, intervals, interval_count);
+  ASSERT_NEAR(result_seq, result_p, 0.1);
+}
+
+TEST(lakhov_trapezoidal_rule_tbb, func4) {
+  std::vector<std::pair<double, double>> intervals(3);
+  intervals[0] = {0, 1};
+  intervals[1] = {0, 1};
+  intervals[2] = {0, 1};
+  int interval_count = 100;
+  double result_seq = trapezoidalRuleSeq(f4, intervals, interval_count);
+  double result_p = trapezoidalRuleParallel(f4, intervals, interval_count);
+  ASSERT_NEAR(result_seq, result_p, 0.1);
+}
+
+TEST(lakhov_trapezoidal_rule_tbb, func5) {
+  std::vector<std::pair<double, double>> intervals(2);
+  intervals[0] = {0, 2};
+  intervals[1] = {0, 2};
+  int interval_count = 100;
+  double result_seq = trapezoidalRuleSeq(f5, intervals, interval_count);
+  double result_p = trapezoidalRuleParallel(f5, intervals, interval_count);
+  ASSERT_NEAR(result_seq, result_p, 0.1);
+}
+
+#if USE_EFFICIENCY_TESTS == 1
+
+  TEST(lakhov_trapezoidal_rule_tbb, ef_test1) {
+    std::vector<std::pair<double, double>> intervals(2);
+    intervals[0] = {0, 40};
+    intervals[1] = {0, 40};
+    int interval_count = 1000;
+
+    tbb::tick_count start_seq = tbb::tick_count::now();
+    double result_seq = trapezoidalRuleSeq(f5, intervals, interval_count);
+    tbb::tick_count end_seq = tbb::tick_count::now();
+
+    tbb::tick_count start_par = tbb::tick_count::now();
+    double result_p = trapezoidalRuleParallel(f5, intervals, interval_count);
+    tbb::tick_count end_par = tbb::tick_count::now();
+
+    double seq_time = (end_seq - start_seq).seconds();
+    double par_time = (end_par - start_par).seconds();
+    std::cout << "Sequential time: " << seq_time << std::endl;
+    std::cout << "Parallel time: " << par_time << std::endl;
+    std::cout << "Ratio seq/par: " << seq_time / par_time << std::endl;
+    ASSERT_NEAR(result_seq, result_p, 0.1);
+  }
+
+  TEST(lakhov_trapezoidal_rule_tbb, ef_test2) {
+    std::vector<std::pair<double, double>> intervals(3);
+    intervals[0] = {0, 20};
+    intervals[1] = {0, 20};
+    intervals[2] = {0, 20};
+    int interval_count = 100;
+
+    tbb::tick_count start_seq = tbb::tick_count::now();
+    double result_seq = trapezoidalRuleSeq(f4, intervals, interval_count);
+    tbb::tick_count end_seq = tbb::tick_count::now();
+
+    tbb::tick_count start_par = tbb::tick_count::now();
+    double result_p = trapezoidalRuleParallel(f4, intervals, interval_count);
+    tbb::tick_count end_par = tbb::tick_count::now();
+
+    double seq_time = (end_seq - start_seq).seconds();
+    double par_time = (end_par - start_par).seconds();
+    std::cout << "Sequential time: " << seq_time << std::endl;
+    std::cout << "Parallel time: " << par_time << std::endl;
+    std::cout << "Ratio seq/par: " << seq_time / par_time << std::endl;
+    ASSERT_NEAR(result_seq, result_p, 0.1);
+  }
+
+#endif  // USE_EFFICIENCY_TESTS
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}
+\end{lstlisting}
+
+\textbf{STD версия}
+\newline
+\newline trapezoidal\_rule.h
+\begin{lstlisting}
+// Copyright 2022 Lakhov Kirill
+#ifndef MODULES_TASK_4_LAKHOV_K_TRAPEZOIDAL_RULE_TRAPEZOIDAL_RULE_H_
+#define MODULES_TASK_4_LAKHOV_K_TRAPEZOIDAL_RULE_TRAPEZOIDAL_RULE_H_
+
+#include <vector>
+#include <functional>
+#include <utility>
+
+
+double trapezoidalRuleParallel(std::function<double(std::vector<double>)> func,
+                       const std::vector<std::pair<double, double>>& intervals,
+                       int interval_count);
+
+double trapezoidalRuleSeq(std::function<double(std::vector<double>)> func,
+                       const std::vector<std::pair<double, double>>& intervals,
+                       int interval_count);
+
+double _trapezoidalRule(std::function<double(std::vector<double>)> func,
+                       const std::vector<double>& args, int position,
+                       const std::vector<std::pair<double, double>>& intervals,
+                       std::vector<int> interval_count);
+
+#endif  // MODULES_TASK_4_LAKHOV_K_TRAPEZOIDAL_RULE_TRAPEZOIDAL_RULE_H_
+\end{lstlisting}
+trapezoidal\_rule.cpp
+\begin{lstlisting}
+#include <thread> // NOLINT [build/c++11]
+#include <mutex> // NOLINT [build/c++11]
+#include <vector>
+#include <iostream>
+#include <functional>
+
+typedef std::vector<std::vector<std::pair<double, double>>> integral_intervals;
+
+double _trapezoidalRule(std::function<double(std::vector<double>)> func,
+                       const std::vector<double>& args, int position,
+                       const std::vector<std::pair<double, double>>& intervals,
+                       std::vector<int> interval_count) {
+        double result = 0;
+        int dimensions = intervals.size();
+        double left = intervals[position].first;
+        double right = intervals[position].second;
+        double interval_size = (right - left)/interval_count[position];
+
+        if (position == dimensions - 1) {
+          double x = left;
+          std::vector<double> current_args(args);
+          std::vector<double> next_args(args);
+          double interval_dimension = 1;
+          for (int i = 0; i < dimensions; i++) {
+              double interval = (intervals[i].second - intervals[i].first)
+                                /interval_count[i];
+              interval_dimension *= interval;
+          }
+          for (int i = 0; i < interval_count[position]; i++) {
+            current_args[position] = x;
+            next_args[position] = x + interval_size;
+            result += ((func(current_args) + func(next_args))/2)
+                      *interval_dimension;
+            x += interval_size;
+          }
+        } else {
+          double x = left;
+          std::vector<double> next_args(args);
+          for (int i = 0; i < interval_count[position]; i++) {
+            next_args[position] = x + interval_size;
+            result += _trapezoidalRule(func, next_args,
+                                      position + 1, intervals, interval_count);
+            x += interval_size;
+          }
+        }
+        return result;
+}
+
+double trapezoidalRuleSeq(std::function<double(std::vector<double>)> func,
+                       const std::vector<std::pair<double, double>>& intervals,
+                       int interval_count) {
+        int position = 0;
+        int dimensions = intervals.size();
+        std::vector<double> args(dimensions);
+        std::vector<int> interval_count_v(dimensions);
+        for (int i = 0; i < dimensions; i++) {
+          args[i] = intervals[i].first;
+          interval_count_v[i] = interval_count;
+        }
+        return _trapezoidalRule(func, args, position,
+                                intervals, interval_count_v);
+}
+
+std::mutex sum_mutex;
+double trapezoidalRuleParallel(std::function<double(std::vector<double>)> func,
+                       const std::vector<std::pair<double, double>>& intervals,
+                       int interval_count) {
+    int thread_count = std::thread::hardware_concurrency();
+    std::vector<std::thread> threads(thread_count);
+
+    int position = 0;
+    int dimensions = intervals.size();
+    std::vector<double> args(dimensions);
+    std::vector<int> interval_count_v(dimensions);
+
+    double result = 0;
+    for (int i = 0; i < dimensions; i++) {
+         args[i] = intervals[i].first;
+         interval_count_v[i] = i == 0 ?
+                                      (interval_count / thread_count) :
+                                       interval_count;
+      }
+
+      integral_intervals intervals_to_thread(thread_count);
+      double fist_dimension_interval =
+                    (intervals[0].second - intervals[0].first) / thread_count;
+      double current_x = intervals[0].first;
+      for (int i = 0; i < thread_count; i++) {
+        std::vector<std::pair<double, double>> current_intervals(intervals);
+        current_intervals[0].first = current_x;
+        current_x += fist_dimension_interval;
+        current_intervals[0].second = current_x;
+        intervals_to_thread[i] = current_intervals;
+    }
+
+    for (int i = 0; i < thread_count; i++) {
+        threads[i] = std::thread([&, i, position](){
+            double local_result = _trapezoidalRule(func, args,
+                          position, intervals_to_thread[i], interval_count_v);
+            {
+              std::lock_guard<std::mutex> lg(sum_mutex);
+              result += local_result;
+            }
+        });
+    }
+    for (int i = 0; i < thread_count; i++) {
+      threads[i].join();
+    }
+
+    return result;
+}
+\end{lstlisting}
+main.cpp
+\begin{lstlisting}
+// Copyright 2022 Lakhov Kirill
+#include <gtest/gtest.h>
+#include <math.h>
+#include <chrono> // NOLINT [build/c++11]
+#include <algorithm>
+#include <vector>
+
+#include "./trapezoidal_rule.h"
+
+#define USE_EFFICIENCY_TESTS 0
+
+// f(x) = x
+double f1(std::vector<double> args) {
+  return args[0];
+}
+
+// f(x, y) = x + y
+double f2(std::vector<double> args) {
+  return args[0] + args[1];
+}
+
+// f(x, y, z) = x + y + z
+double f3(std::vector<double> args) {
+  return args[0] + args[1] + args[2];
+}
+
+// f(x, y, z) = e^(-x-y-z)
+double f4(std::vector<double> args) {
+  return exp(-args[0]-args[1]-args[2]);
+}
+
+// f(x, y) = log10(x^2) + 3y
+double f5(std::vector<double> args) {
+  return log10(args[0]*args[0]) + 3 * args[1];
+}
+
+TEST(lakhov_trapezoidal_rule_std, func1) {
+  std::vector<std::pair<double, double>> intervals(1);
+  intervals[0] = {0, 10};
+  int interval_count = 10;
+  double result_seq = trapezoidalRuleSeq(f1, intervals, interval_count);
+  double result_p = trapezoidalRuleParallel(f1, intervals, interval_count);
+  ASSERT_NEAR(result_seq, result_p, 0.1);
+}
+
+
+TEST(lakhov_trapezoidal_rule_std, func2) {
+  std::vector<std::pair<double, double>> intervals(2);
+  intervals[0] = {0, 2};
+  intervals[1] = {0, 2};
+  int interval_count = 70;
+  double result_seq = trapezoidalRuleSeq(f2, intervals, interval_count);
+  double result_p = trapezoidalRuleParallel(f2, intervals, interval_count);
+  ASSERT_NEAR(result_seq, result_p, 0.1);
+}
+
+TEST(lakhov_trapezoidal_rule_std, func3) {
+  std::vector<std::pair<double, double>> intervals(3);
+  intervals[0] = {0, 3};
+  intervals[1] = {0, 3};
+  intervals[2] = {0, 3};
+  int interval_count = 100;
+  double result_seq = trapezoidalRuleSeq(f3, intervals, interval_count);
+  double result_p = trapezoidalRuleParallel(f3, intervals, interval_count);
+  ASSERT_NEAR(result_seq, result_p, 0.1);
+}
+
+TEST(lakhov_trapezoidal_rule_std, func4) {
+  std::vector<std::pair<double, double>> intervals(3);
+  intervals[0] = {0, 1};
+  intervals[1] = {0, 1};
+  intervals[2] = {0, 1};
+  int interval_count = 100;
+  double result_seq = trapezoidalRuleSeq(f4, intervals, interval_count);
+  double result_p = trapezoidalRuleParallel(f4, intervals, interval_count);
+  ASSERT_NEAR(result_seq, result_p, 0.1);
+}
+
+TEST(lakhov_trapezoidal_rule_std, func5) {
+  std::vector<std::pair<double, double>> intervals(2);
+  intervals[0] = {0, 2};
+  intervals[1] = {0, 2};
+  int interval_count = 100;
+  double result_seq = trapezoidalRuleSeq(f5, intervals, interval_count);
+  double result_p = trapezoidalRuleParallel(f5, intervals, interval_count);
+  ASSERT_NEAR(result_seq, result_p, 0.1);
+}
+
+#if USE_EFFICIENCY_TESTS == 1
+
+  TEST(lakhov_trapezoidal_rule_std, ef_test1) {
+    std::vector<std::pair<double, double>> intervals(2);
+    intervals[0] = {0, 40};
+    intervals[1] = {0, 40};
+    int interval_count = 1000;
+
+    auto start_seq = std::chrono::high_resolution_clock::now();
+    double result_seq = trapezoidalRuleSeq(f5, intervals, interval_count);
+    auto end_seq = std::chrono::high_resolution_clock::now();
+
+    auto start_par = std::chrono::high_resolution_clock::now();
+    double result_p = trapezoidalRuleParallel(f5, intervals, interval_count);
+    auto end_par = std::chrono::high_resolution_clock::now();
+
+    auto seq_time = std::chrono::duration_cast
+        <std::chrono::nanoseconds>(end_seq - start_seq);
+    auto par_time = std::chrono::duration_cast
+        <std::chrono::nanoseconds>(end_par - start_par);
+    std::cout << "Sequential time: " << seq_time.count() << std::endl;
+    std::cout << "Parallel time: " << par_time.count() << std::endl;
+    std::cout << "Ratio seq/par: " << static_cast<double>(seq_time.count())
+                                      / par_time.count() << std::endl;
+    ASSERT_NEAR(result_seq, result_p, 0.1);
+  }
+
+  TEST(lakhov_trapezoidal_rule_std, ef_test2) {
+    std::vector<std::pair<double, double>> intervals(3);
+    intervals[0] = {0, 20};
+    intervals[1] = {0, 20};
+    intervals[2] = {0, 20};
+    int interval_count = 100;
+
+
+    auto start_seq = std::chrono::high_resolution_clock::now();
+    double result_seq = trapezoidalRuleSeq(f4, intervals, interval_count);
+    auto end_seq = std::chrono::high_resolution_clock::now();
+
+    auto start_par = std::chrono::high_resolution_clock::now();
+    double result_p = trapezoidalRuleParallel(f4, intervals, interval_count);
+    auto end_par = std::chrono::high_resolution_clock::now();
+
+    auto seq_time = std::chrono::duration_cast
+        <std::chrono::nanoseconds>(end_seq - start_seq);
+    auto par_time = std::chrono::duration_cast
+        <std::chrono::nanoseconds>(end_par - start_par);
+    std::cout << "Sequential time: " << seq_time.count() << std::endl;
+    std::cout << "Parallel time: " << par_time.count() << std::endl;
+    std::cout << "Ratio seq/par: " << static_cast<double>(seq_time.count())
+                                      / par_time.count() << std::endl;
+    ASSERT_NEAR(result_seq, result_p, 0.1);
+  }
+
+#endif  // USE_EFFICIENCY_TESTS
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}
+\end{lstlisting}
+\end{document}
