@@ -170,25 +170,14 @@ double trapezoidalRuleSeq(std::function<double(std::vector<double>)> func,
                         const std::vector<std::pair<double, double>>& intervals,
                         int interval_count);
 \end{lstlisting}
-\par Функция для параллельного алгоритма (OpenMP версия):
+\par Функция для параллельного алгоритма:
 \begin{lstlisting}
-double trapezoidalRuleOMP(std::function<double(std::vector<double>)> func,
+double trapezoidalRuleParallel(std::function<double(std::vector<double>)> func,
                         const std::vector<std::pair<double, double>>& intervals,
                         int interval_count);
 \end{lstlisting}
-\par Функция для параллельного алгоритма (TBB версия):
-\begin{lstlisting}
-double trapezoidalRuleTBB(std::function<double(std::vector<double>)> func,
-                        const std::vector<std::pair<double, double>>& intervals,
-                        int interval_count);
-\end{lstlisting}
-\par Функция для параллельного алгоритма (std::thread версия):
-\begin{lstlisting}
-double trapezoidalRuleSTD(std::function<double(std::vector<double>)> func,
-                        const std::vector<std::pair<double, double>>& intervals,
-                        int interval_count);
-\end{lstlisting}
-\par В каждой из функций параллельного алгоритма: первый параметр это фунцкия, которую необходимо проинтегрировать, второй параметр - массив интервалов, показывающих области интегрирования для каждого измерения, последний параметр - число разбиений области интегрирования для каждого из измерений.
+
+\par Сигнатура функции для каждой технологии параллелизма одинакова. В каждой из функций параллельного алгоритма: первый параметр это фунцкия, которую необходимо проинтегрировать, второй параметр - массив интервалов, показывающих области интегрирования для каждого измерения, последний параметр - число разбиений области интегрирования для каждого из измерений.
 \par Функции f1-f5 для тестирования разработанных алгоритмов, где входной параметр является массивом аргументов:
 \begin{lstlisting}
 double f1(std::vector<double> args);
@@ -197,7 +186,7 @@ double f3(std::vector<double> args);
 double f4(std::vector<double> args);
 double f5(std::vector<double> args);
 \end{lstlisting}
-\par В файле исходного кода histogram\_stretching.cpp содержится реализация функций, объявленных в заголовочном файле. В файле исходного кода main.cpp содержатся тесты для проверки корректности программы.
+\par В файле исходного кода trapezoidal\_rule.cpp содержится реализация функций, объявленных в заголовочном файле. В файле исходного кода main.cpp содержатся тесты для проверки корректности программы.
 \newpage
 
 % Подтверждение корректности
